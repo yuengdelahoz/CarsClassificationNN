@@ -17,6 +17,7 @@ class Network:
 		# Read Dataset
 		self.dataset = None
 		self.name = None
+
 	def initialize(self,topology):
 		self.x = tf.placeholder(tf.float32, shape =[None,240,240,3],name='input_images')
 		self.y = tf.placeholder(tf.float32, shape = [None,6],name='labels')
