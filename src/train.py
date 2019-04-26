@@ -1,9 +1,8 @@
-# from Network.Net import Network
+from Network.Net import Network
 
-print('hello')
-# n = Network()
-# n.initialize('topology_04')
-# n.train(20000)
+n = Network()
+n.initialize('topology_04')
+n.train(20000)
 # n.evaluate()
 
 # n.initialize('topology_03')
