@@ -1,3 +1,8 @@
-FROM gcr.io/tensorflow/tensorflow:1.5.0-rc1-devel-gpu-py3
-run pip3 install opencv-python==3.3.0.9
-run pip3 install requests
+FROM tensorflow/tensorflow:latest-devel-gpu-py3
+
+WORKDIR /usr/src/app
+
+COPY requirements.txt ./
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+CMD [ "python3", "-u", "./train.py"]
