@@ -2,7 +2,7 @@ import os,sys
 import numpy as np
 import cv2
 import collections
-from tools import clear_folder,get_training_set
+from tools import clear_folder, generate_train_test_input_images
 import pickle
 import tarfile
 import wget
@@ -94,8 +94,10 @@ class DataHandler:
 					data_ready = True
 				else:
 					print('Extraction incompleted')
-		# if data_ready:
-
+		if data_ready:
+			generate_train_test_input_images()
+			# train_annotations = get_train_or_test_annotations(is_for_trainning=True)
+			# test_annotations = get_train_or_test_annotations(is_for_trainning=False)
 			# tar_file = self.path+'/images.tar'
 			# if os.path.exists(tar_file):
 				# try:
