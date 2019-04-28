@@ -2,7 +2,7 @@ import os,sys
 import numpy as np
 import cv2
 import collections
-from tools import clear_folder
+from tools import clear_folder,get_training_set
 import pickle
 import tarfile
 import wget
@@ -58,8 +58,9 @@ class DataHandler:
 
 	def build_datasets(self):
 		images_path = os.path.join(self.path,'images')
-		train_images_path = os.path.join(images_path,'cars_train')
-		test_images_path = os.path.join(images_path,'cars_test')
+		original_images_path = os.path.join(images_path,'original')
+		train_images_path = os.path.join(original_images_path ,'cars_train')
+		test_images_path = os.path.join(original_images_path ,'cars_test')
 		attempt_download_and_or_extraction = False
 		data_ready = False
 		if os.path.exists(images_path):
@@ -86,14 +87,15 @@ class DataHandler:
 			is_download_complete=self.__maybe_download_files()
 			if is_download_complete:
 				print('Extracting images')
-				is_train_data_ready = self.__extract_tarfile(self.train_tarfile_path,images_path )  
-				is_test_data_ready = self.__extract_tarfile(self.test_tarfile_path,images_path )  
+				is_train_data_ready = self.__extract_tarfile(self.train_tarfile_path,original_images_path )  
+				is_test_data_ready = self.__extract_tarfile(self.test_tarfile_path,original_images_path )  
 				if is_train_data_ready and is_test_data_ready :
 					print('Extraction completed')
 					data_ready = True
 				else:
 					print('Extraction incompleted')
 		# if data_ready:
+
 			# tar_file = self.path+'/images.tar'
 			# if os.path.exists(tar_file):
 				# try:

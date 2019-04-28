@@ -18,19 +18,20 @@ import shutil
 import traceback
 
 PATH = os.path.dirname(os.path.relpath(__file__))
+devkit = os.path.join(PATH,'devkit')
+ann = loadmat(devkit+'/cars_train_annos.mat').get('annotations')
+labels = loadmat(devkit+'/cars_meta.mat').get('class_names')
+
 def get_training_set():
 	training_set = dict()
-	file_path = PATH+'/traininig_set.pickle'
+	file_path = os.path.join(PATH,'traininig_set.pickle')
 	if not os.path.exists(file_path):
-		ann = loadmat('cars_train_annos.mat').get('annotations')
-		labels = loadmat('cars_meta.mat').get('class_names')
 		bbox_x1 = ann.get('bbox_x1')
 		bbox_y1 = ann.get('bbox_y1')
 		bbox_x2 = ann.get('bbox_x2')
 		bbox_y2 = ann.get('bbox_y2')
 		label = ann.get('class')
 		fnames = ann.get('fname')
-
 		for i,fname in enumerate(fnames):
 			data = dict()
 			data['bounding_box']= [bbox_x1[i],bbox_y1[i],bbox_x2[i],bbox_y2[i]]
@@ -77,7 +78,7 @@ def build_images():
 	max_size =0
 	sml_img = ""
 	big_img = ""
-	cnt = 100
+
 	for img_name,values in train_set.items():
 		img = cv2.imread('images/original/{}'.format(img_name))
 		x1,y1,x2,y2 = values['bounding_box']
@@ -88,9 +89,6 @@ def build_images():
 		if cropped_img.size > max_size:
 			big_img = img_name
 			max_size = img.size
-		cnt -= 1
-		if cnt==0:
-			break
 
 	sml_img = cv2.imread('images/cropped/{}'.format(big_img))
 	h_ref,w_ref,_ = sml_img.shape
