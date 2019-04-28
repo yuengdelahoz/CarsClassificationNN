@@ -2,14 +2,10 @@ import os,sys
 import numpy as np
 import cv2
 import collections
-import zipfile
-from zipfile import ZipFile
 from Utils.utils import clear_folder
-import gzip
-import urllib.request
-import requests
 import pickle
-import subprocess
+import tarfile
+import wget
 
 Datasets = collections.namedtuple('Datasets', ['training', 'testing','validation'])
 
@@ -17,7 +13,7 @@ class Dataset():
 	def __init__(self,images, gt = 'superlabel'):
 		self.instances = images
 		self.num_of_images = len(images)
-		self.images_path = os.path.dirname(__file__)+'/Images' 
+		self.images_path = os.path.dirname(__file__)+'/images' 
 		self.ground_truth = gt
 		self.index = 0
 
@@ -50,16 +46,20 @@ class Dataset():
 		return np.array((imagesBatch,labelsBatch))
 
 class DataHandler:
+	__TOTAL_NUMBER_OF_IMAGES = 16185 
+	__IMAGES_URL = "http://imagenet.stanford.edu/internal/car196/car_ims.tgz"
+	__IMAGES_METADATA_URL = "http://imagenet.stanford.edu/internal/car196/cars_annos.mat"
 	def __init__(self):
 		self.path = os.path.dirname(os.path.relpath(__file__))
+		self.tarfile_path= self.path+'/car_ims.tgz'
 
 	def build_datasets(self):
-		images_path = self.path + '/Images'
+		images_path = self.path + '/images'
 		attempt_download_and_or_extraction = False
 		data_ready = False
-		if os.path.exists(self.path+'/Images'):
+		if os.path.exists(images_path):
 			try:
-				if len(os.listdir(images_path+'/input')) != len(os.listdir(images_path+'/superlabel')):
+				if len(os.listdir(images_path+'/input')) != __TOTAL_NUMBER_OF_IMAGES :
 					clear_folder(images_path)
 					attempt_download_and_or_extraction = True
 				else:
@@ -71,67 +71,61 @@ class DataHandler:
 			attempt_download_and_or_extraction = True
 
 		if attempt_download_and_or_extraction:
-			zip_ready =self.__maybe_download_file_from_google_drive()
-			if zip_ready:
+			tar_ready =self.__maybe_download_tarfile()
+			if tar_ready:
 				print('Extracting Images Into Images Folder')
-				data_ready = self.__extract_images()  
+				data_ready = self.__extract_tarfile()  
 				if data_ready:
 					print('\nImage Extraction Completed')
 				else:
 					print('Image Extraction Incompleted')
-		if data_ready:
-			zip_file = self.path+'/Images.zip'
-			if os.path.exists(zip_file):
-				try:
-					os.remove(zip_file)
-					print('Images.zip was removed')
-				except:
-					pass
+		# if data_ready:
+			# tar_file = self.path+'/images.tar'
+			# if os.path.exists(tar_file):
+				# try:
+					# os.remove(tar_file)
+					# print('images.tar was removed')
+				# except:
+					# pass
 
-			dataset_pickle_path = self.path+"/dataset.pickle"
-			if not os.path.exists(dataset_pickle_path):
-				keys = os.listdir(images_path+'/input')
-				np.random.shuffle(keys)
-				sz = len(keys)
-				train_idx = int(sz*0.7)
-				test_idx = int(sz*0.95)
-				dset = {'training':keys[:train_idx]}
-				dset.update({'testing':keys[train_idx:test_idx]})
-				dset.update( {'validation':keys[test_idx:]})
-				pickle.dump(dset,open(dataset_pickle_path,"wb"))
-			else:
-				dset = pickle.load(open(dataset_pickle_path,'rb'))
+			# dataset_pickle_path = self.path+"/dataset.pickle"
+			# if not os.path.exists(dataset_pickle_path):
+				# keys = os.listdir(images_path+'/input')
+				# np.random.shuffle(keys)
+				# sz = len(keys)
+				# train_idx = int(sz*0.7)
+				# test_idx = int(sz*0.95)
+				# dset = {'training':keys[:train_idx]}
+				# dset.update({'testing':keys[train_idx:test_idx]})
+				# dset.update( {'validation':keys[test_idx:]})
+				# pickle.dump(dset,open(dataset_pickle_path,"wb"))
+			# else:
+				# dset = pickle.load(open(dataset_pickle_path,'rb'))
 
-			return Datasets(training=Dataset(dset['training']),
-					testing=Dataset(dset['testing']),
-					validation=Dataset(dset['validation']))
+			# return Datasets(training=Dataset(dset['training']),
+					# testing=Dataset(dset['testing']),
+					# validation=Dataset(dset['validation']))
  
-	def __extract_images(self):
-		"""Extract the first file enclosed in a zip file as a list of words."""
-		cnt = 0
-		with ZipFile(self.path+'/Images.zip') as z:
-			for member in z.filelist:
-				try:
-					print('extracting',member.filename,end='\r')
-					z.extract(member,path=self.path+'/Images')
-				except zipfile.error as e:
-					return False
-			return True
+	def __extract_tarfile(self):
+		tf = tarfile.open(self.tarfile_path)
+		tf.extractall
+		# """Extract the first file enclosed in a tar file as a list of words."""
+		# cnt = 0
+		# with tarFile(self.path+'/images.tar') as z:
+			# for member in z.filelist:
+				# try:
+					# print('extracting',member.filename,end='\r')
+					# z.extract(member,path=self.path+'/images')
+				# except tarfile.error as e:
+					# return False
+			# return True
 		
-	def __maybe_download_file_from_google_drive(self):
-		destination = self.path+'/Images.zip'
-		response = None
+	def __maybe_download_tarfile(self):
 		if os.path.exists(destination):
 			return True
 		else:
-			# Download zip file containing the dataset images (train,test,validate)
-			gid = input('enter google drive id of images -> ')
-			subprocess.run(['gdrive','download','--path',self.path,gid])
-			for zipfile in os.scandir(self.path):
-				if zipfile.name.endswith('zip'):
-					os.rename(zipfile.path,zipfile.path.replace(zipfile.name,'Images.zip'))
-					break
-		return os.path.exists(self.path+'/Images')
+			wget.download(__IMAGES_URL,out=self.tarfile_path)
+		return os.path.exists(self.tarfile_path)
 
 if __name__ == '__main__':
 	DataHandler()
