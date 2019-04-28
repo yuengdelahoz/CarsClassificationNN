@@ -2,6 +2,7 @@
 **/*.npy
 **/*.jpg
 **/*.zip
+**/*.tgz
 Dataset/Images.zip
 Dataset/*.zip
 models.zip
@@ -13,4 +14,4 @@ Painted_Images/
 .project
 ObjectOnFloorDetectionNN/
 .pydevproject
-venv/
+**/venv/

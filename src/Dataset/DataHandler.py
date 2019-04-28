@@ -2,10 +2,11 @@ import os,sys
 import numpy as np
 import cv2
 import collections
-from Utils.utils import clear_folder
+from tools import clear_folder
 import pickle
 import tarfile
 import wget
+import traceback
 
 Datasets = collections.namedtuple('Datasets', ['training', 'testing','validation'])
 
@@ -46,39 +47,52 @@ class Dataset():
 		return np.array((imagesBatch,labelsBatch))
 
 class DataHandler:
-	__TOTAL_NUMBER_OF_IMAGES = 16185 
-	__IMAGES_URL = "http://imagenet.stanford.edu/internal/car196/car_ims.tgz"
-	__IMAGES_METADATA_URL = "http://imagenet.stanford.edu/internal/car196/cars_annos.mat"
+	__TOTAL_NUMBER_OF_TRAIN_IMAGES = 8144
+	__TOTAL_NUMBER_OF_TEST_IMAGES = 8041
+	__TRAIN_IMAGES_URL = "http://imagenet.stanford.edu/internal/car196/cars_train.tgz"
+	__TEST_IMAGES_URL = "http://imagenet.stanford.edu/internal/car196/cars_test.tgz"
 	def __init__(self):
 		self.path = os.path.dirname(os.path.relpath(__file__))
-		self.tarfile_path= self.path+'/car_ims.tgz'
+		self.train_tarfile_path= os.path.join(self.path,'cars_train.tgz')
+		self.test_tarfile_path= os.path.join(self.path,'cars_test.tgz')
 
 	def build_datasets(self):
-		images_path = self.path + '/images'
+		images_path = os.path.join(self.path,'images')
+		train_images_path = os.path.join(images_path,'cars_train')
+		test_images_path = os.path.join(images_path,'cars_test')
 		attempt_download_and_or_extraction = False
 		data_ready = False
 		if os.path.exists(images_path):
 			try:
-				if len(os.listdir(images_path+'/input')) != __TOTAL_NUMBER_OF_IMAGES :
-					clear_folder(images_path)
+				if len(os.listdir(train_images_path)) != DataHandler.__TOTAL_NUMBER_OF_TRAIN_IMAGES :
+					clear_folder(train_images_path)
 					attempt_download_and_or_extraction = True
-				else:
-					data_ready = True
 			except:
-				clear_folder(images_path)
+				clear_folder(train_images_path)
 				attempt_download_and_or_extraction = True
+			try:
+				if len(os.listdir(test_images_path)) != DataHandler.__TOTAL_NUMBER_OF_TEST_IMAGES :
+					clear_folder(test_images_path)
+					attempt_download_and_or_extraction = True
+			except:
+				clear_folder(test_images_path)
+				attempt_download_and_or_extraction = True
+			else:
+				data_ready = True
 		else:
 			attempt_download_and_or_extraction = True
 
 		if attempt_download_and_or_extraction:
-			tar_ready =self.__maybe_download_tarfile()
-			if tar_ready:
-				print('Extracting Images Into Images Folder')
-				data_ready = self.__extract_tarfile()  
-				if data_ready:
-					print('\nImage Extraction Completed')
+			is_download_complete=self.__maybe_download_files()
+			if is_download_complete:
+				print('Extracting images')
+				is_train_data_ready = self.__extract_tarfile(self.train_tarfile_path,images_path )  
+				is_test_data_ready = self.__extract_tarfile(self.test_tarfile_path,images_path )  
+				if is_train_data_ready and is_test_data_ready :
+					print('Extraction completed')
+					data_ready = True
 				else:
-					print('Image Extraction Incompleted')
+					print('Extraction incompleted')
 		# if data_ready:
 			# tar_file = self.path+'/images.tar'
 			# if os.path.exists(tar_file):
@@ -106,26 +120,26 @@ class DataHandler:
 					# testing=Dataset(dset['testing']),
 					# validation=Dataset(dset['validation']))
  
-	def __extract_tarfile(self):
-		tf = tarfile.open(self.tarfile_path)
-		tf.extractall
-		# """Extract the first file enclosed in a tar file as a list of words."""
-		# cnt = 0
-		# with tarFile(self.path+'/images.tar') as z:
-			# for member in z.filelist:
-				# try:
-					# print('extracting',member.filename,end='\r')
-					# z.extract(member,path=self.path+'/images')
-				# except tarfile.error as e:
-					# return False
-			# return True
+	def __extract_tarfile(self,tar_file,path):
+		try:
+			tf = tarfile.open(tar_file)
+			tf.extractall(path)
+			return True
+		except:
+			traceback.print_exc()
+			return False
 		
-	def __maybe_download_tarfile(self):
-		if os.path.exists(destination):
+	def __maybe_download_files(self):
+		if os.path.exists(self.train_tarfile_path) and os.path.exists(self.test_tarfile_path):
 			return True
 		else:
-			wget.download(__IMAGES_URL,out=self.tarfile_path)
-		return os.path.exists(self.tarfile_path)
+			if not os.path.exists(self.train_tarfile_path):
+				print('Downloading train images')
+				wget.download(DataHandler.__TRAIN_IMAGES_URL,out=self.path)
+			if not os.path.exists(self.test_tarfile_path):
+				print('Downloading test images')
+				wget.download(DataHandler.__TEST_IMAGES_URL,out=self.path)
+		return os.path.exists(self.train_tarfile_path) and os.path.exists(self.test_tarfile_path)
 
 if __name__ == '__main__':
-	DataHandler()
+	DataHandler().build_datasets()

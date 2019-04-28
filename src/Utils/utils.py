@@ -21,9 +21,7 @@ def clear_folder(name):
 		try:
 			shutil.rmtree(name)
 		except Exception as e:
-			print('Folder could not be removed')
-			traceback.print_exc(file=sys.stdout)
-			input('Press enter to continue')
+			traceback.print_exc()
 
 def create_folder(name,clear_if_exists = True):
 	if clear_if_exists:
