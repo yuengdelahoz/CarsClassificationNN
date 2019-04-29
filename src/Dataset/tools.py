@@ -29,7 +29,7 @@ train_original_images_path = os.path.join(ORIGINAL_IMAGES_PATH,'cars_train')
 train_cropped_images_path = os.path.join(CROPPED_IMAGES_PATH,'cars_train')
 train_resized_images_path = os.path.join(RESIZED_IMAGES_PATH,'cars_train')
 
-
+labels = loadmat(os.path.join(devkit,'cars_meta.mat')).get('class_names')
 def print_no_newline(string):
 	sys.stdout.write(string)
 	sys.stdout.flush()
@@ -45,7 +45,6 @@ def get_train_or_test_annotations(is_for_training=True):
 		annotations_path =  os.path.join(devkit,'cars_test_annos_withlabels.mat')
 	if not os.path.exists(pickle_path):
 		annotations = loadmat(annotations_path).get('annotations')
-		labels = loadmat(os.path.join(devkit,'cars_meta.mat')).get('class_names')
 		bbox_x1 = annotations.get('bbox_x1')
 		bbox_y1 = annotations.get('bbox_y1')
 		bbox_x2 = annotations.get('bbox_x2')
@@ -55,8 +54,8 @@ def get_train_or_test_annotations(is_for_training=True):
 		for i,fname in enumerate(fnames):
 			data = dict()
 			data['bounding_box']= [bbox_x1[i],bbox_y1[i],bbox_x2[i],bbox_y2[i]]
-			data['class'] = label[i]-1
-			data['class_name'] = labels[data['class']]
+			data['class_index'] = label[i]-1
+			data['class_name'] = labels[data['class_index']]
 			annotations_pickle.update({fname:data})
 		pickle.dump(annotations_pickle,open(pickle_path,'wb'))
 	else:
@@ -204,3 +203,43 @@ def generate_input_images(is_for_training):
 def generate_train_test_input_images():
 	generate_input_images(is_for_training=True)
 	generate_input_images(is_for_training=False)
+
+def generate_one_hot_vectors():
+	one_hot_vectors_path = os.path.join(PATH,'labels.pickle')
+	if not os.path.exists(one_hot_vectors_path):
+		one_hot_vectors = {'train':dict(),'test':dict(),'validation':dict()}
+		train_annotations =get_train_or_test_annotations(is_for_training=True)
+		num_of_labels = len(labels)
+		for img_name,values in train_annotations.items():
+			oh_vector = np.zeros(num_of_labels,np.int8)
+			class_index = values['class_index']
+			oh_vector[class_index] = 1
+			train = one_hot_vectors.get('train')
+			train.update({img_name:oh_vector})
+
+		test_annotations =get_train_or_test_annotations(is_for_training=False)
+		test_annotations_list = list(test_annotations.keys())
+		np.random.shuffle(test_annotations_list)
+		ref_idx = int(len(test_annotations_list)*0.2)
+		validation_annotations = test_annotations_list[0:ref_idx]
+		new_test_annotations = test_annotations_list[ref_idx:]
+		for img_name in validation_annotations:
+			values = test_annotations.get(img_name)
+			class_index = values['class_index']
+			oh_vector = np.zeros(num_of_labels,np.int8)
+			oh_vector[class_index] = 1
+			validation = one_hot_vectors.get('validation')
+			validation.update({img_name:oh_vector})
+
+		for img_name in new_test_annotations:
+			values = test_annotations.get(img_name)
+			class_index = values['class_index']
+			oh_vector = np.zeros(num_of_labels,np.int8)
+			oh_vector[class_index] = 1
+			test = one_hot_vectors.get('test')
+			test.update({img_name:oh_vector})
+
+		pickle.dump(one_hot_vectors,open(one_hot_vectors_path,'wb'))
+	else:
+		one_hot_vectors = pickle.load(open( one_hot_vectors_path, "rb"))
+	return one_hot_vectors

@@ -2,7 +2,7 @@ import os,sys
 import numpy as np
 import cv2
 import collections
-from tools import clear_folder, generate_train_test_input_images
+from tools import clear_folder, generate_train_test_input_images, generate_one_hot_vectors
 import pickle
 import tarfile
 import wget
@@ -96,6 +96,7 @@ class DataHandler:
 					print('Extraction incompleted')
 		if data_ready:
 			generate_train_test_input_images()
+			ohv = generate_one_hot_vectors()
 			# train_annotations = get_train_or_test_annotations(is_for_trainning=True)
 			# test_annotations = get_train_or_test_annotations(is_for_trainning=False)
 			# tar_file = self.path+'/images.tar'
@@ -120,7 +121,7 @@ class DataHandler:
 			# else:
 				# dset = pickle.load(open(dataset_pickle_path,'rb'))
 
-			# return Datasets(training=Dataset(dset['training']),
+			return Datasets(training=Dataset(dset['training']),
 					# testing=Dataset(dset['testing']),
 					# validation=Dataset(dset['validation']))
  
