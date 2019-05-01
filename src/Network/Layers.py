@@ -15,7 +15,7 @@ class Layer():
 		self.output = tf.matmul(x,self.Weights) + self.Biases
 		# output.shape = [out_neurons]
 		if output:
-			self.output = self.actFunc(self.output,name='superpixels')
+			self.output = self.actFunc(self.output,name='cars')
 			# output.shape = [out_neurons]
 		else:
 			self.output = self.actFunc(self.output)
@@ -24,17 +24,17 @@ class Layer():
 
 	def Convolutional(self,shape,x,strides=1,k_pool=2):
 		self.type = 'Convolutional'
-		# x.shape = [batch,in_height,in_width,in_channels] = [?,240,240,3]
+		# x.shape = [batch,in_height,in_width,in_channels] = [?,429,240,3]
 		self.Weights = self.W_init(shape)
 		# Weights.shape = [filter_height, filter_width, in_channels,out_channels]
 		self.Biases = self.B_init([shape[-1]])
 		# Biases.shape = [out_channels]
 		self.output = self.actFunc(self.conv2d(x,self.Weights,strides) + self.Biases)
 		# convLayer.output.shape = [batch, in_height/strides,in_width/strides,out_channels]
-		# convLayer.output.shape = [batch,1720,1720,out_channels] using default strides
+		if k_pool is None:
+			return self
 		self.output = self.max_pool_kxk(self.output,k_pool)
-		# maxpooLayer.output.shape = [batch, in_height/k_pool, in_width/k_pool,out_channels]
-		# maxpooLayer.output.shape = [batch, 860,860, out_channels] using default k_pool
+		# maxpooLayer.output.shape = [batch, in_height/k_pool, in_width/k_pool,out_channels] = [?,214,120,3] using default k_pool
 		return self
 
 	def Dropout(self,x,keep_prob):
@@ -65,3 +65,5 @@ class Layer():
 			return tf.sigmoid(x,name=name)
 		elif self.act_func == 'tanh':
 			return tf.tanh(x,name=name)
+		else:
+			return x

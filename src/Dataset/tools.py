@@ -62,7 +62,6 @@ def get_train_or_test_annotations(is_for_training=True):
 		annotations_pickle = pickle.load(open( pickle_path , "rb"))
 	return annotations_pickle
 
-
 def clear_folder(name):
 	if os.path.isdir(name):
 		try:
@@ -139,6 +138,14 @@ def generate_resized_images(is_for_training):
 		remove_and_create = True
 
 	if remove_and_create:
+		max_w = 0
+		for image in os.scandir(cropped_images_path):
+			img = cv2.imread(image.path)
+			h,w,_ = img.shape
+			if w > max_w:
+				max_w = w
+
+		print('max_w',max_w)
 		remove_and_create_folder(resized_images_path)
 		print('Resizing images for {}'.format('training' if is_for_training else 'testing'))
 		cnt = 0
@@ -147,6 +154,9 @@ def generate_resized_images(is_for_training):
 			print_no_newline('{} - {}%'.format(image.name,int(100*cnt/total)))
 			img = cv2.imread(image.path)
 			h,w,_ = img.shape
+			if h > w:
+				continue
+			
 			aspect_ratio = w/h
 			new_w = 240
 			new_h = int(new_w/aspect_ratio)
@@ -205,39 +215,48 @@ def generate_train_test_input_images():
 	generate_input_images(is_for_training=False)
 
 def generate_one_hot_vectors():
-	one_hot_vectors_path = os.path.join(PATH,'labels.pickle')
+	one_hot_vectors_path = os.path.join(PATH,'dataset.pickle')
 	if not os.path.exists(one_hot_vectors_path):
 		one_hot_vectors = {'train':dict(),'test':dict(),'validation':dict()}
 		train_annotations =get_train_or_test_annotations(is_for_training=True)
-		num_of_labels = len(labels)
-		for img_name,values in train_annotations.items():
-			oh_vector = np.zeros(num_of_labels,np.int8)
-			class_index = values['class_index']
-			oh_vector[class_index] = 1
-			train = one_hot_vectors.get('train')
-			train.update({img_name:oh_vector})
-
 		test_annotations =get_train_or_test_annotations(is_for_training=False)
-		test_annotations_list = list(test_annotations.keys())
-		np.random.shuffle(test_annotations_list)
-		ref_idx = int(len(test_annotations_list)*0.2)
-		validation_annotations = test_annotations_list[0:ref_idx]
-		new_test_annotations = test_annotations_list[ref_idx:]
-		for img_name in validation_annotations:
-			values = test_annotations.get(img_name)
-			class_index = values['class_index']
-			oh_vector = np.zeros(num_of_labels,np.int8)
-			oh_vector[class_index] = 1
-			validation = one_hot_vectors.get('validation')
-			validation.update({img_name:oh_vector})
+		num_of_labels = len(labels)
 
-		for img_name in new_test_annotations:
-			values = test_annotations.get(img_name)
-			class_index = values['class_index']
-			oh_vector = np.zeros(num_of_labels,np.int8)
-			oh_vector[class_index] = 1
-			test = one_hot_vectors.get('test')
-			test.update({img_name:oh_vector})
+		train_input_images_path = os.path.join(INPUT_IMAGES_PATH,'cars_train')
+		for img in os.scandir(train_input_images_path):
+			if img.name.endswith('.jpg'):
+				values = train_annotations.get(img.name)
+				class_index = values['class_index']
+				oh_vector = np.zeros(num_of_labels,np.int8)
+				oh_vector[class_index] = 1
+				test = one_hot_vectors.get('train')
+				test.update({img.name:oh_vector})
+
+		test_input_images_path = os.path.join(INPUT_IMAGES_PATH,'cars_test')
+		test_images_list = os.listdir(test_input_images_path)
+		np.random.shuffle(test_images_list)
+		ref_idx = int(len(test_images_list)*0.3)
+
+		test_images = test_images_list[ref_idx:]
+		validation_images = test_images_list[0:ref_idx]
+
+		for img_name in test_images:
+			if img_name.endswith('.jpg'):
+				values = test_annotations.get(img_name)
+				class_index = values['class_index']
+				oh_vector = np.zeros(num_of_labels,np.int8)
+				oh_vector[class_index] = 1
+				test = one_hot_vectors.get('test')
+				test.update({img_name:oh_vector})
+
+		for img_name in validation_images:
+			if img_name.endswith('.jpg'):
+				values = test_annotations.get(img_name)
+				class_index = values['class_index']
+				oh_vector = np.zeros(num_of_labels,np.int8)
+				oh_vector[class_index] = 1
+				validation = one_hot_vectors.get('validation')
+				validation.update({img_name:oh_vector})
 
 		pickle.dump(one_hot_vectors,open(one_hot_vectors_path,'wb'))
 	else:

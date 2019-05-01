@@ -10,9 +10,10 @@ models.zip
 **/*.swp
 **/*.pyc
 **/*.DS_Store
-Models/
+models/
 Painted_Images/
 .project
 ObjectOnFloorDetectionNN/
 .pydevproject
 **/venv/
+

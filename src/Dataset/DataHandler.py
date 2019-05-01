@@ -2,23 +2,37 @@ import os,sys
 import numpy as np
 import cv2
 import collections
-from tools import clear_folder, generate_train_test_input_images, generate_one_hot_vectors
 import pickle
 import tarfile
 import wget
 import traceback
 
-Datasets = collections.namedtuple('Datasets', ['training', 'testing','validation'])
+PATH = os.path.dirname(os.path.relpath(__file__))
+sys.path.append(PATH)
+from tools import clear_folder, generate_train_test_input_images, generate_one_hot_vectors
 
+
+from enum import Enum
+class DTYPES(Enum):
+	TRAINING = 1
+	TESTING = 2
+	VALIDATION = 3
+
+Datasets = collections.namedtuple('Datasets', ['training', 'testing','validation'])
 class Dataset():
-	def __init__(self,images, gt = 'superlabel'):
-		self.instances = images
-		self.num_of_images = len(images)
-		self.images_path = os.path.dirname(__file__)+'/images' 
-		self.ground_truth = gt
+	def __init__(self,images, dType):
+		self.instances = list(images.keys())
+		self.num_of_images = len(self.instances)
+		print('num_of_images',self.num_of_images ,dType)
+		if dType == DTYPES.TRAINING:
+			self.images_path = os.path.join(PATH,'images/input/cars_train')
+		elif dType in [DTYPES.TESTING,DTYPES.VALIDATION]:
+			self.images_path = os.path.join(PATH,'images/input/cars_test')
+		self.type = dType
+		self.ground_truth = images
 		self.index = 0
 
-	def next_batch(self, batch_size):
+	def next_batch(self, batch_size=50):
 		if batch_size > self.num_of_images:
 			raise ValueError("Dataset error...batch size is greater than the number of samples")
 
@@ -26,25 +40,31 @@ class Dataset():
 		self.index += batch_size
 
 		if self.index > self.num_of_images:
+			# print('shuffling dataset -',self.type)
+			# print('next_batch start', start,'index',self.index)
 			np.random.shuffle(self.instances)
 			# Shuffle the data
 			self.index = batch_size
 			start = 0
 
 		end = self.index
-		imgs = self.instances[start:end]
+		batch_instances = self.instances[start:end]
 		imagesBatch = []
 		labelsBatch = []
-		for img in imgs:
-			if img.endswith('.png'):
-				try:
-					image = cv2.imread(self.images_path+'/input/'+img)
-					label = np.load(self.images_path+'/'+self.ground_truth+'/'+img.replace('png','npy'))
-				except:
-					continue
-				imagesBatch.append(image)
-				labelsBatch.append(label)
-		return np.array((imagesBatch,labelsBatch))
+		namesBatch = []
+		for img in batch_instances:
+			try:
+				img_path = os.path.join(self.images_path,img)
+				image = cv2.imread(img_path)
+				image = (image-128)/128 #normalizing image
+				label = self.ground_truth.get(img)
+			except:
+				traceback.print_exc()
+				continue
+			imagesBatch.append(image)
+			labelsBatch.append(label)
+			namesBatch.append(img)
+		return np.array(imagesBatch),np.array(labelsBatch),namesBatch
 
 class DataHandler:
 	__TOTAL_NUMBER_OF_TRAIN_IMAGES = 8144
@@ -52,12 +72,11 @@ class DataHandler:
 	__TRAIN_IMAGES_URL = "http://imagenet.stanford.edu/internal/car196/cars_train.tgz"
 	__TEST_IMAGES_URL = "http://imagenet.stanford.edu/internal/car196/cars_test.tgz"
 	def __init__(self):
-		self.path = os.path.dirname(os.path.relpath(__file__))
-		self.train_tarfile_path= os.path.join(self.path,'cars_train.tgz')
-		self.test_tarfile_path= os.path.join(self.path,'cars_test.tgz')
+		self.train_tarfile_path= os.path.join(PATH,'cars_train.tgz')
+		self.test_tarfile_path= os.path.join(PATH,'cars_test.tgz')
 
 	def build_datasets(self):
-		images_path = os.path.join(self.path,'images')
+		images_path = os.path.join(PATH,'images')
 		original_images_path = os.path.join(images_path,'original')
 		train_images_path = os.path.join(original_images_path ,'cars_train')
 		test_images_path = os.path.join(original_images_path ,'cars_test')
@@ -96,34 +115,11 @@ class DataHandler:
 					print('Extraction incompleted')
 		if data_ready:
 			generate_train_test_input_images()
-			ohv = generate_one_hot_vectors()
-			# train_annotations = get_train_or_test_annotations(is_for_trainning=True)
-			# test_annotations = get_train_or_test_annotations(is_for_trainning=False)
-			# tar_file = self.path+'/images.tar'
-			# if os.path.exists(tar_file):
-				# try:
-					# os.remove(tar_file)
-					# print('images.tar was removed')
-				# except:
-					# pass
-
-			# dataset_pickle_path = self.path+"/dataset.pickle"
-			# if not os.path.exists(dataset_pickle_path):
-				# keys = os.listdir(images_path+'/input')
-				# np.random.shuffle(keys)
-				# sz = len(keys)
-				# train_idx = int(sz*0.7)
-				# test_idx = int(sz*0.95)
-				# dset = {'training':keys[:train_idx]}
-				# dset.update({'testing':keys[train_idx:test_idx]})
-				# dset.update( {'validation':keys[test_idx:]})
-				# pickle.dump(dset,open(dataset_pickle_path,"wb"))
-			# else:
-				# dset = pickle.load(open(dataset_pickle_path,'rb'))
-
-			return Datasets(training=Dataset(dset['training']),
-					# testing=Dataset(dset['testing']),
-					# validation=Dataset(dset['validation']))
+			one_hot_vectors = generate_one_hot_vectors()
+			train_set = Dataset(one_hot_vectors['train'],DTYPES.TRAINING)
+			test_set = Dataset(one_hot_vectors['test'],DTYPES.TESTING)
+			validation_set = Dataset(one_hot_vectors['validation'],DTYPES.VALIDATION)
+			return Datasets(training=train_set,testing=test_set,validation=validation_set)
  
 	def __extract_tarfile(self,tar_file,path):
 		try:
@@ -140,11 +136,12 @@ class DataHandler:
 		else:
 			if not os.path.exists(self.train_tarfile_path):
 				print('Downloading train images')
-				wget.download(DataHandler.__TRAIN_IMAGES_URL,out=self.path)
+				wget.download(DataHandler.__TRAIN_IMAGES_URL,out=PATH)
 			if not os.path.exists(self.test_tarfile_path):
 				print('Downloading test images')
-				wget.download(DataHandler.__TEST_IMAGES_URL,out=self.path)
+				wget.download(DataHandler.__TEST_IMAGES_URL,out=PATH)
 		return os.path.exists(self.train_tarfile_path) and os.path.exists(self.test_tarfile_path)
 
 if __name__ == '__main__':
-	DataHandler().build_datasets()
+	dsets = DataHandler().build_datasets()
+
