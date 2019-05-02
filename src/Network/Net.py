@@ -105,8 +105,7 @@ class Network:
 		self.layers.update({'L7':L7.__dict__})
 		self.layers.update({'L_out':L_out.__dict__})
 
-
-	def train(self,iterations=10000,learning_rate = 1e-04):
+	def train(self,iterations=10000,learning_rate = 1e-03):
 		# reading dataset
 		if self.dataset is None:
 			self.dataset = DataHandler().build_datasets()
@@ -116,10 +115,12 @@ class Network:
 		train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 		completed_iterations = tf.Variable(0, trainable=False, name='completed_iterations')
 
-		# accuracy
+
+		# Performance metric
 		prediction = tf.nn.softmax(self.output)
 		correct_prediction = tf.math.equal(tf.math.argmax(prediction, axis=0), tf.math.argmax(self.y, axis=0))
-		accuracy = tf.math.reduce_mean(tf.dtypes.cast(correct_prediction, tf.float32),name='accuracy')
+		accuracy_op = tf.math.reduce_mean(tf.dtypes.cast(correct_prediction, tf.float32),name='accuracy')
+		last_biggest_accuracy_var= tf.Variable(0.0, trainable=False, name='last_biggest_accuracy')
 
 		# Creating session and initilizing variables
 		init = tf.global_variables_initializer()
@@ -159,13 +160,12 @@ class Network:
 				msg = "\nNumber of parameters = {}\nNumber of iterations = {}\nLearning rate = {}\n".format(acum,(comp_iters + remaining_iterations),learning_rate)
 				f.write(msg)
 
+			stopping_criteria_cnt = 0
 			for i in range(remaining_iterations):
 				start = time.time()
 				batch = self.dataset.training.next_batch()
 				normBatch = batch[0] 
 				labelBatch = batch[1]
-				# labelBatch = batch[1]
-				# pred = prediction.eval(feed_dict={self.x:normBatch, self.y:labelBatch, self.keep_prob:1.0})
 				train_step.run(feed_dict={self.x:normBatch,self.y:labelBatch, self.keep_prob:0.5})
 				if i%100==0 or i==remaining_iterations-1:
 					loss_value = loss.eval(feed_dict={self.x:normBatch, self.y:labelBatch, self.keep_prob:1.0})
@@ -173,27 +173,30 @@ class Network:
 					update= comp_iters + i+1
 					print('updating completed iterations:',sess.run(completed_iterations.assign(update)))
 
-					save_path = saver.save(sess,model_path)
-					print("Model saved in file: %s" % save_path)
-
 					batch = self.dataset.validation.next_batch()
-					# normBatch = np.array([(img-128)/128 for img in batch[0]])
 					normBatch = batch[0] 
-					# labelBatch = [lbl for lbl in batch[1]]
 					labelBatch = batch[1]
-					# pre = prediction.eval(feed_dict={self.x:normBatch,self.keep_prob:1.0})
-					# print('prediction shape', pre.shape)
-					# r = np.argmax(pre[0])
-					# l = np.argmax(labelBatch[0])
-					# print('prediction',r,'label',l)
-					print('Validation accuracy',sess.run(accuracy ,feed_dict={self.x:normBatch, self.y:labelBatch, self.keep_prob:1.0}))
+					accuracy_validation = sess.run(accuracy_op ,feed_dict={self.x:normBatch, self.y:labelBatch, self.keep_prob:1.0})
+					last_biggest_accuracy = sess.run(last_biggest_accuracy_var)
+					print('Validation accuracy',accuracy_validation,'last_biggest_accuracy',last_biggest_accuracy)
+					if accuracy_validation > last_biggest_accuracy:
+						stopping_criteria_cnt = 0
+						sess.run(last_biggest_accuracy_var.assign(accuracy_validation))
+						save_path = saver.save(sess,model_path)
+						print("Model saved in file: %s" % save_path)
+					else:
+						stopping_criteria_cnt +=1
 					last_saved_time = time.time()
-			frozen_model_path = os.path.join(topology_path,'frozen/model.pb')
-			if remaining_iterations > 0 or not os.path.exists(frozen_model_path):
-				print('freezing graph')
-				self.freeze_graph_model(sess)
-			else:
-				print('Nothing to be done')
+
+					if stopping_criteria_cnt >=100:
+						print('Stopping early')
+						break
+			# frozen_model_path = os.path.join(topology_path,'frozen/model.pb')
+			# if remaining_iterations > 0 or not os.path.exists(frozen_model_path):
+				# print('freezing graph')
+				# self.freeze_graph_model(sess)
+			# else:
+				# print('Nothing to be done')
 			print('total time -> {:.2f} secs'.format(time.time()-init_time))
 		try:
 			tf.reset_default_graph()
@@ -240,7 +243,7 @@ class Network:
 				testImages = batch[0] 
 				testLabels = batch[1]
 				accuracy = sess.run(accuracy_op ,feed_dict={x:testImages,y: testLabels,keep_prob:1.0})
-				print('{}/{} completed batches - Testing set accuracy: {:.2f}%'.format(completed_batches,self.dataset.testing.num_of_images,accuracy*100))
+				utils.print_no_newline('{}/{} completed images - Testing set accuracy: {:.2f}%'.format(completed_batches,self.dataset.testing.num_of_images,accuracy*100))
 				accuracies.append(accuracy)
 			accuracy = np.mean(accuracies)
 			eval_metrics = '\nAccuracy (Testing set): {:.2f}%'.format(accuracy)
@@ -250,10 +253,10 @@ class Network:
 				f.write(eval_metrics)
 		try:
 			tf.reset_default_graph()
+			shutil.copyfile(os.path.join(PATH,'../Dataset/dataset.pickle'),os.path.join(topology_path,'dataset.pickle'))
 		except :
 			pass
 
-		shutil.copyfile(os.path.join(PATH,'../Dataset/dataset.pickle'),os.path.join(topology_path,'dataset.pickle'))
 
 	def freeze_graph_model(self, session = None, g = None , topology = None):
 		if topology is None:

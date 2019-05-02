@@ -24,12 +24,11 @@ ORIGINAL_IMAGES_PATH= os.path.join(PATH,'images/original')
 CROPPED_IMAGES_PATH= os.path.join(PATH,'images/cropped')
 RESIZED_IMAGES_PATH= os.path.join(PATH,'images/resized')
 INPUT_IMAGES_PATH= os.path.join(PATH,'images/input')
-
 train_original_images_path = os.path.join(ORIGINAL_IMAGES_PATH,'cars_train')
 train_cropped_images_path = os.path.join(CROPPED_IMAGES_PATH,'cars_train')
 train_resized_images_path = os.path.join(RESIZED_IMAGES_PATH,'cars_train')
-
 labels = loadmat(os.path.join(devkit,'cars_meta.mat')).get('class_names')
+
 def print_no_newline(string):
 	sys.stdout.write(string)
 	sys.stdout.flush()

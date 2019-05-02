@@ -1,0 +1,6 @@
+numpy
+requests
+opencv-contrib-python-headless
+mat4py
+wget
+tensorflow

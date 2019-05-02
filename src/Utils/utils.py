@@ -44,6 +44,11 @@ def is_model_stored(topology_path):
 	except:
 		return False
 
+def print_no_newline(string):
+	sys.stdout.write(string)
+	sys.stdout.flush()
+	print('\r', end='')
+
 if __name__ == '__main__':
 	# generate_new_labels()
 	createSuperLabels()
