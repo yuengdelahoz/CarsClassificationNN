@@ -2,7 +2,10 @@ from Network.Net import Network
 import sys,os, shutil
 PATH = os.path.dirname(os.path.relpath(__file__))
 
-arg = sys.argv[1]
+try:
+	arg = sys.argv[1]
+except:
+	arg = None
 topologies = ['topology_01','topology_02','topology_03']
 run_eval = False
 if arg in topologies:
