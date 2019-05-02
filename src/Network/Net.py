@@ -200,6 +200,7 @@ class Network:
 			print('total time -> {:.2f} secs'.format(time.time()-init_time))
 		try:
 			tf.reset_default_graph()
+			shutil.copyfile(os.path.join(PATH,'../Dataset/dataset.pickle'),os.path.join(topology_path,'dataset.pickle'))
 		except:
 			pass
 
@@ -243,7 +244,7 @@ class Network:
 				testImages = batch[0] 
 				testLabels = batch[1]
 				accuracy = sess.run(accuracy_op ,feed_dict={x:testImages,y: testLabels,keep_prob:1.0})
-				utils.print_no_newline('{}/{} completed images - Testing set accuracy: {:.2f}%'.format(completed_batches,self.dataset.testing.num_of_images,accuracy*100))
+				utils.print_no_newline('{}/{} completed images - Testing batch accuracy: {:.2f}%'.format(completed_batches,self.dataset.testing.num_of_images,accuracy*100))
 				accuracies.append(accuracy)
 			accuracy = np.mean(accuracies)
 			eval_metrics = '\nAccuracy (Testing set): {:.2f}%'.format(accuracy)
@@ -253,10 +254,8 @@ class Network:
 				f.write(eval_metrics)
 		try:
 			tf.reset_default_graph()
-			shutil.copyfile(os.path.join(PATH,'../Dataset/dataset.pickle'),os.path.join(topology_path,'dataset.pickle'))
 		except :
 			pass
-
 
 	def freeze_graph_model(self, session = None, g = None , topology = None):
 		if topology is None:
